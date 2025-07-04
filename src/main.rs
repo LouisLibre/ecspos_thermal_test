@@ -50,8 +50,8 @@ fn main() -> Result<()> {
     #[cfg(feature = "windows-support")]
     {
         // --- Windows Driver ---
-        // IMPORTANT: Replace "XP-80C" with the name of your printer on Windows.
-        const PRINTER_NAME: &str = "XP-80C";
+        // IMPORTANT: Replace "BIXOLON SRP-330II" with the name of your printer on Windows.
+        const PRINTER_NAME: &str = "BIXOLON SRP-330II";
 
         let windows_printer = WindowsPrinter::from_str(PRINTER_NAME).map_err(|e| {
             eprintln!("Error: Could not find printer '{}'.", PRINTER_NAME);

@@ -17,10 +17,11 @@ pub struct WindowsPrinter {
     raw_vec: Vec<u16>,
     raw_name: PWSTR,
     name: OnceCell<String>,
+    is_offline: bool,
 }
 
 impl WindowsPrinter {
-    pub fn new(printer_name: PWSTR) -> Self {
+    pub fn new(printer_name: PWSTR, is_offline: bool) -> Self {
         unsafe {
             let mut raw_vec = printer_name.as_wide().to_vec();
             raw_vec.push(0x0);
@@ -29,6 +30,7 @@ impl WindowsPrinter {
                 raw_name: PWSTR(raw_vec.as_mut_ptr()),
                 raw_vec,
                 name: OnceCell::new(),
+                is_offline: is_offline,
             }
         }
     }
@@ -58,8 +60,9 @@ impl WindowsPrinter {
         let mut needed = 0;
         let mut returned = 0;
         let mut buffer: Vec<u8>;
+        let mut is_offline = false;
         const FLAGS: u32 = PRINTER_ENUM_LOCAL | PRINTER_ENUM_NETWORK;
-        const LEVEL: u32 = 4;
+        const LEVEL: u32 = 2;
         unsafe {
             let _ = EnumPrintersW(
                 FLAGS,
@@ -69,10 +72,6 @@ impl WindowsPrinter {
                 &mut needed,
                 &mut returned,
             );
-
-            if needed == 0 {
-                return Ok(Vec::new());
-            }
 
             buffer = vec![0; needed as usize];
 
@@ -85,11 +84,23 @@ impl WindowsPrinter {
                 &mut returned,
             );
             let sliced =
-                slice::from_raw_parts(buffer.as_ptr() as *const PRINTER_INFO_4W, returned as usize);
+                slice::from_raw_parts(buffer.as_ptr() as *const PRINTER_INFO_2W, returned as usize);
 
+            // Prints the status of the printer
+            for info in sliced {
+                if info.Attributes & PRINTER_ATTRIBUTE_WORK_OFFLINE != 0 {
+                    println!("Printer is offline");
+                    is_offline = true;
+                } else {
+                    println!("Printer is online");
+                    is_offline = false;
+                }
+            }
+
+            // Return printers with status (info.pStatus)
             let printers = sliced
                 .iter()
-                .map(|info| WindowsPrinter::new(info.pPrinterName))
+                .map(|info| WindowsPrinter::new(info.pPrinterName, is_offline))
                 .collect::<Vec<WindowsPrinter>>();
             Ok(printers)
         }
@@ -101,6 +112,7 @@ impl Debug for WindowsPrinter {
         f.debug_struct("WindowsPrinter")
             .field("raw_name", &self.raw_name)
             .field("name", &self.get_name())
+            .field("is_offline", &self.is_offline)
             .finish()
     }
 }
