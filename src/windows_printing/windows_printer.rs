@@ -89,7 +89,7 @@ impl WindowsPrinter {
 
             // Prints the status of the printer
             for info in sliced {
-                if info.Attributes & PRINTER_ATTRIBUTE_WORK_OFFLINE != 0 {
+                if info.Status != 0 {
                     println!("Printer is offline");
                     is_offline = true;
                 } else {

@@ -53,18 +53,19 @@ fn main() -> Result<()> {
         // IMPORTANT: Replace "BIXOLON SRP-330II" with the name of your printer on Windows.
         const PRINTER_NAME: &str = "BIXOLON SRP-330II";
 
+        println!("Listing available printers...");
+        match WindowsPrinter::list_printers() {
+            Ok(printers) if printers.is_empty() => println!(" -> No printers found."),
+            Ok(printers) => {
+                for p in printers {
+                    println!(" -> {}, is_offline: {}", p.get_name(), p.is_offline());
+                }
+            }
+            Err(list_err) => eprintln!(" -> Could not list printers: {}", list_err),
+        }
+
         let windows_printer = WindowsPrinter::from_str(PRINTER_NAME).map_err(|e| {
             eprintln!("Error: Could not find printer '{}'.", PRINTER_NAME);
-            eprintln!("Listing available printers...");
-            match WindowsPrinter::list_printers() {
-                Ok(printers) if printers.is_empty() => eprintln!(" -> No printers found."),
-                Ok(printers) => {
-                    for p in printers {
-                        eprintln!(" -> {}", p.get_name());
-                    }
-                }
-                Err(list_err) => eprintln!(" -> Could not list printers: {}", list_err),
-            }
             e
         })?;
         let driver = WindowsDriver::open(&windows_printer)?;
