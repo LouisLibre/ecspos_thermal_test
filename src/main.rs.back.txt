@@ -1,0 +1,144 @@
+/*
+use escpos::driver::*;
+use escpos::errors::Result;
+use escpos::printer::Printer;
+use escpos::utils::*;
+use rusb::{self, Language, Result as RusbResult}; // Import RusbResult for clarity
+*/
+use std::time::Duration;
+use std::error::Error; // For Box<dyn Error>
+
+// If you have a custom PrinterError and want to use it in main's signature,
+// you'd need to implement From<rusb::Error> for PrinterError.
+// For example:
+/*
+#[derive(Debug)]
+enum PrinterError {
+    Rusb(rusb::Error),
+    Io(std::io::Error),
+    // other variants
+}
+
+impl From<rusb::Error> for PrinterError {
+    fn from(err: rusb::Error) -> Self {
+        PrinterError::Rusb(err)
+    }
+}
+impl From<std::io::Error> for PrinterError {
+    fn from(err: std::io::Error) -> Self {
+        PrinterError::Io(err)
+    }
+}
+// ... and so on for other error types you want to wrap ...
+
+// Then main could be:
+// fn main() -> Result<(), PrinterError> { ... }
+*/
+
+// For this example, we'll use a general error type for main.
+fn main() -> Result<(), Box<dyn Error>> {
+    // Timeout for USB operations that support it (like read_languages)
+    let timeout = Duration::from_millis(1000);
+
+    println!("Listing USB devices:");
+    println!(
+        "{:<3} {:<3} {:<6} {:<6} {:<30} {:<30}",
+        "Bus", "Dev", "VID", "PID", "Manufacturer", "Product"
+    );
+    println!("{:-<3} {:-<3} {:-<6} {:-<6} {:-<30} {:-<30}", "", "", "", "", "", "");
+
+    // rusb::devices() can return rusb::Error, which can be converted to Box<dyn Error> by `?`
+    for device in rusb::devices()?.iter() {
+        let device_desc = match device.device_descriptor() {
+            Ok(d) => d,
+            Err(e) => {
+                // Log error and skip this device if descriptor can't be read
+                eprintln!(
+                    "Bus {:03} Device {:03}: Could not get device descriptor: {}",
+                    device.bus_number(),
+                    device.address(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut product_name = String::from("<no product string>");
+        let mut manufacturer_name = String::from("<no manufacturer string>");
+
+        match device.open() {
+            Ok(mut handle) => {
+                // In rusb 0.9.4, read_languages takes a timeout.
+                match handle.read_languages(timeout) {
+                    Ok(languages) => {
+                        if !languages.is_empty() {
+                            // We don't explicitly pass the language to read_string_descriptor_ascii
+                            // in rusb 0.9.4, it typically uses the first one.
+                            // let language: Language = languages[0];
+
+                            if let Some(idx) = device_desc.product_string_index() {
+                                if idx > 0 { // Index 0 means no string
+                                    // rusb 0.9.4 read_string_descriptor_ascii takes only the index.
+                                    // It uses the first language and an internal timeout.
+                                    match handle.read_string_descriptor_ascii(idx) {
+                                        Ok(s) => product_name = s,
+                                        Err(e) => product_name = format!("<read error: {:?}>", e),
+                                    }
+                                }
+                            }
+
+                            if let Some(idx) = device_desc.manufacturer_string_index() {
+                                if idx > 0 { // Index 0 means no string
+                                    match handle.read_string_descriptor_ascii(idx) {
+                                        Ok(s) => manufacturer_name = s,
+                                        Err(e) => manufacturer_name = format!("<read error: {:?}>", e),
+                                    }
+                                }
+                            }
+                        } else {
+                            product_name = String::from("<no languages reported>");
+                            manufacturer_name = String::from("<no languages reported>");
+                        }
+                    }
+                    Err(e) => {
+                        let err_msg = format!("<lang read error: {:?}>", e);
+                        product_name = err_msg.clone();
+                        manufacturer_name = err_msg;
+                    }
+                }
+                // Device handle is dropped here, closing the device.
+            }
+            Err(e) => {
+                let err_msg = format!("<could not open: {:?}>", e);
+                product_name = err_msg.clone();
+                manufacturer_name = err_msg;
+            }
+        }
+
+        println!(
+            "{:<3} {:<3} {:04x}   {:04x}   {:<30} {:<30}",
+            device.bus_number(),
+            device.address(),
+            device_desc.vendor_id(),
+            device_desc.product_id(),
+            manufacturer_name.trim(),
+            product_name.trim(),
+        );
+    }
+
+    /*
+    let driver = UsbDriver::open(0x1504, 0x006e, None)?;
+    Printer::new(driver, Protocol::default(), None)
+        .debug_mode(Some(DebugMode::Dec))
+        .init()?
+        .writeln("Tortilleria Sinaloa")?
+        .writeln(" ")?
+        .writeln(" ")?
+        .writeln(" ")?
+        .writeln("--")?
+        .writeln("")?
+        .writeln("")?
+        .print_cut()?;
+    */
+    Ok(())
+}

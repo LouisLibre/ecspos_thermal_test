@@ -1,0 +1,12 @@
+[package]
+name = "thermal_printer"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+windows-support = ["windows"]
+
+[dependencies]
+escpos = { version = "0.15.2", features = ["full"] }
+rusb = "0.9.4"
+windows = {version = "0.56.0", features = ["Win32_Graphics_Printing", "Win32_Graphics_Gdi"], optional = true }
