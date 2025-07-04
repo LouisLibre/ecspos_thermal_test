@@ -7,7 +7,7 @@ use std::{
 
 use windows::{
     Win32::Graphics::Printing::{
-        EnumPrintersW, PRINTER_ENUM_LOCAL, PRINTER_ENUM_NETWORK, PRINTER_INFO_4W,
+        EnumPrintersW, PRINTER_ENUM_LOCAL, PRINTER_ENUM_NETWORK, PRINTER_INFO_2W, PRINTER_INFO_4W,
     },
     core::PWSTR,
 };
