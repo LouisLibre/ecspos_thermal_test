@@ -58,7 +58,8 @@ fn main() -> Result<()> {
             Ok(printers) if printers.is_empty() => println!(" -> No printers found."),
             Ok(printers) => {
                 for p in printers {
-                    println!(" -> {}, is_offline: {}", p.get_name(), p.is_offline());
+                    println!(" -> {}, is_offline: {}", p.get_name(), p.is_offline);
+                    println!("{:?}", p);
                 }
             }
             Err(list_err) => eprintln!(" -> Could not list printers: {}", list_err),

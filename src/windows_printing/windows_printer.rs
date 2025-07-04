@@ -13,12 +13,12 @@ use windows::{
     core::PWSTR,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WindowsPrinter {
     raw_vec: Vec<u16>,
     raw_name: PWSTR,
     name: OnceCell<String>,
-    is_offline: bool,
+    pub is_offline: bool,
 }
 
 impl WindowsPrinter {
@@ -90,10 +90,10 @@ impl WindowsPrinter {
             // Prints the status of the printer
             for info in sliced {
                 if info.Status != 0 {
-                    println!("Printer is offline");
+                    //println!("Printer is offline");
                     is_offline = true;
                 } else {
-                    println!("Printer is online");
+                    //println!("Printer is online");
                     is_offline = false;
                 }
             }
