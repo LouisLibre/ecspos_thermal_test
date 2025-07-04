@@ -13,16 +13,18 @@ use windows::{
     core::PWSTR,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct WindowsPrinter {
     raw_vec: Vec<u16>,
     raw_name: PWSTR,
     name: OnceCell<String>,
     pub is_ready: bool, // Offline or busy printers are not ready
+    raw_status: u32,
+    raw_attributes: u32,
 }
 
 impl WindowsPrinter {
-    pub fn new(printer_name: PWSTR, is_ready: bool) -> Self {
+    pub fn new(printer_name: PWSTR, is_ready: bool, raw_status: u32, raw_attributes: u32) -> Self {
         unsafe {
             let mut raw_vec = printer_name.as_wide().to_vec();
             raw_vec.push(0x0);
@@ -32,6 +34,8 @@ impl WindowsPrinter {
                 raw_vec,
                 name: OnceCell::new(),
                 is_ready: is_ready,
+                raw_status: raw_status,
+                raw_attributes: raw_attributes,
             }
         }
     }
@@ -103,7 +107,7 @@ impl WindowsPrinter {
                 .iter()
                 .map(|info| {
                     let is_ready = info.Status == 0;
-                    WindowsPrinter::new(info.pPrinterName, is_ready)
+                    WindowsPrinter::new(info.pPrinterName, is_ready, info.Status, info.Attributes)
                 })
                 .collect::<Vec<WindowsPrinter>>();
             Ok(printers)
@@ -117,6 +121,8 @@ impl Debug for WindowsPrinter {
             .field("raw_name", &self.raw_name)
             .field("name", &self.get_name())
             .field("is_ready", &self.is_ready)
+            .field("raw_status", &self.raw_status)
+            .field("raw_attributes", &self.raw_attributes)
             .finish()
     }
 }
