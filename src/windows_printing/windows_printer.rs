@@ -18,11 +18,11 @@ pub struct WindowsPrinter {
     raw_vec: Vec<u16>,
     raw_name: PWSTR,
     name: OnceCell<String>,
-    pub is_offline: bool,
+    pub is_ready: bool, // Offline or busy printers are not ready
 }
 
 impl WindowsPrinter {
-    pub fn new(printer_name: PWSTR, is_offline: bool) -> Self {
+    pub fn new(printer_name: PWSTR, is_ready: bool) -> Self {
         unsafe {
             let mut raw_vec = printer_name.as_wide().to_vec();
             raw_vec.push(0x0);
@@ -31,7 +31,7 @@ impl WindowsPrinter {
                 raw_name: PWSTR(raw_vec.as_mut_ptr()),
                 raw_vec,
                 name: OnceCell::new(),
-                is_offline: is_offline,
+                is_ready: is_ready,
             }
         }
     }
@@ -61,7 +61,7 @@ impl WindowsPrinter {
         let mut needed = 0;
         let mut returned = 0;
         let mut buffer: Vec<u8>;
-        let mut is_offline = false;
+        let mut is_ready = true;
         const FLAGS: u32 = PRINTER_ENUM_LOCAL | PRINTER_ENUM_NETWORK;
         const LEVEL: u32 = 2;
         unsafe {
@@ -91,17 +91,20 @@ impl WindowsPrinter {
             for info in sliced {
                 if info.Status != 0 {
                     //println!("Printer is offline");
-                    is_offline = true;
+                    is_ready = false;
                 } else {
                     //println!("Printer is online");
-                    is_offline = false;
+                    is_ready = true;
                 }
             }
 
             // Return printers with status (info.pStatus)
             let printers = sliced
                 .iter()
-                .map(|info| WindowsPrinter::new(info.pPrinterName, is_offline))
+                .map(|info| {
+                    let is_ready = info.Status == 0;
+                    WindowsPrinter::new(info.pPrinterName, is_ready)
+                })
                 .collect::<Vec<WindowsPrinter>>();
             Ok(printers)
         }
@@ -113,7 +116,7 @@ impl Debug for WindowsPrinter {
         f.debug_struct("WindowsPrinter")
             .field("raw_name", &self.raw_name)
             .field("name", &self.get_name())
-            .field("is_offline", &self.is_offline)
+            .field("is_ready", &self.is_ready)
             .finish()
     }
 }
